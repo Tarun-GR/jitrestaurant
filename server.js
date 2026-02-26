@@ -39,7 +39,7 @@ app.use('/static', express.static(staticPath));
 let sessionStore;
 try {
   if (MONGODB_URI) {
-    sessionStore = MongoStore.create({ mongoUrl: MONGODB_URI });
+    sessionStore = MongoStore.create({ mongoUrl: MONGODB_URI, dbName: 'inventory_db' });
   }
 } catch (e) {
   console.error('Failed to initialize MongoDB session store:', e && e.message ? e.message : e);
@@ -79,9 +79,19 @@ app.listen(PORT, () => {
 });
 
 db.connect()
-  .then((conn) => {
-    const dbName = conn && conn.db ? conn.db.databaseName : '?';
+  .then(async (conn) => {
+    if (!conn || !conn.db) {
+      console.log('MongoDB: connection failed (no connection object)');
+      return;
+    }
+    const dbName = conn.db.databaseName;
     console.log('MongoDB: connected (database: "' + dbName + '")');
+    try {
+      await conn.db.command({ ping: 1 });
+      console.log('MongoDB: ping OK — database is reachable');
+    } catch (e) {
+      console.error('MongoDB: ping failed —', e && e.message ? e.message : e);
+    }
   })
   .catch((err) => {
     console.error('MongoDB: not connected -', err && err.message ? err.message : err);

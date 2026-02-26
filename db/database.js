@@ -125,9 +125,9 @@ async function connect() {
     await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 10_000,
       connectTimeoutMS: 10_000,
-      // Some hosts prefer IPv4; avoids IPv6-related TLS handshake issues
       autoSelectFamily: false,
-      family: 4
+      family: 4,
+      dbName: 'inventory_db'  // force this database regardless of URI path
     });
     isConnected = true;
     console.log('MongoDB connected');
