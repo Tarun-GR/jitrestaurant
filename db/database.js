@@ -119,7 +119,10 @@ let isConnected = false;
 async function connect() {
   if (isConnected) return mongoose.connection;
   try {
-    await mongoose.connect(MONGODB_URI);
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 10_000,
+      connectTimeoutMS: 10_000
+    });
     isConnected = true;
     console.log('MongoDB connected');
     return mongoose.connection;

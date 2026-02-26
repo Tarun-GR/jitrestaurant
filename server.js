@@ -16,6 +16,14 @@ const apiRouter = require('./routes/api');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  process.exit(1);
+});
+
 // Required when behind a reverse proxy (Render, etc.) so redirects and cookies use correct URL
 app.set('trust proxy', 1);
 
@@ -66,14 +74,11 @@ app.use(staffRouter);
 app.use(pagesRouter);
 app.use(apiRouter);
 
-db.connect().then(() => {
-  app.listen(PORT, () => {
-    console.log(`JIT Restaurant server running at http://localhost:${PORT}`);
-  });
-}).catch((err) => {
-  console.error('Failed to connect to MongoDB:', err.message);
-  console.log('Starting server anyway (DB operations may fail until MongoDB is connected).');
-  app.listen(PORT, () => {
-    console.log(`JIT Restaurant server running at http://localhost:${PORT}`);
-  });
+app.listen(PORT, () => {
+  console.log(`JIT Restaurant server running on port ${PORT}`);
+});
+
+db.connect().catch((err) => {
+  console.error('Failed to connect to MongoDB:', err && err.message ? err.message : err);
+  console.log('Continuing without DB connection (DB operations may fail until MongoDB is reachable).');
 });
