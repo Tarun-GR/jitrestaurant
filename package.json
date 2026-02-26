@@ -1,0 +1,21 @@
+{
+  "name": "jitrestaurant",
+  "version": "1.0.0",
+  "description": "JIT Restaurant - Node.js backend (converted from Flask)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "connect-mongo": "^5.1.0",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.21.0",
+    "express-session": "^1.18.0",
+    "mongoose": "^8.0.0"
+  }
+}

@@ -1,0 +1,16 @@
+# Required image files for the frontend
+
+Add these image files to this folder so backgrounds and partner logos display correctly:
+
+- beachside.jpg       (background: login, restaurant login, dashboard, menu, inventory, orders, admin, staff)
+- grand-plaza.jpg     (Partners page)
+- royal-crown.jpg     (Partners page)
+- marina-bay.jpg      (Partners page)
+- taj-palace.jpg      (Partners page)
+- golden-lotus.jpg    (Partners page)
+- spice-garden.jpg    (Partners page)
+- mountain-retreat.jpg (Partners page)
+- desert-oasis.jpg    (Partners page)
+
+Until these are added, background images will show as broken; CSS and layout are unchanged.
+Partners and Subscription pages use external Unsplash URLs for some backgrounds.
