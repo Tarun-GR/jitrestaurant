@@ -78,7 +78,11 @@ app.listen(PORT, () => {
   console.log(`JIT Restaurant server running on port ${PORT}`);
 });
 
-db.connect().catch((err) => {
-  console.error('Failed to connect to MongoDB:', err && err.message ? err.message : err);
-  console.log('Continuing without DB connection (DB operations may fail until MongoDB is reachable).');
-});
+db.connect()
+  .then(() => {
+    console.log('MongoDB: connected');
+  })
+  .catch((err) => {
+    console.error('MongoDB: not connected -', err && err.message ? err.message : err);
+    console.log('Server running without database (signup/login and data will not work until MongoDB is reachable).');
+  });
