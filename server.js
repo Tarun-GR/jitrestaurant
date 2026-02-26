@@ -79,8 +79,9 @@ app.listen(PORT, () => {
 });
 
 db.connect()
-  .then(() => {
-    console.log('MongoDB: connected');
+  .then((conn) => {
+    const dbName = conn && conn.db ? conn.db.databaseName : '?';
+    console.log('MongoDB: connected (database: "' + dbName + '")');
   })
   .catch((err) => {
     console.error('MongoDB: not connected -', err && err.message ? err.message : err);

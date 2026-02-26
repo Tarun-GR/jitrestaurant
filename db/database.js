@@ -377,6 +377,7 @@ async function createUser(username, email, phone, hashedPassword) {
     phone_number: (phone || '').toString().trim(),
     password: hashedPassword
   });
+  console.log('User created in MongoDB:', emailLower, '(id:', doc._id.toString() + ')');
   return doc._id.toString();
 }
 
