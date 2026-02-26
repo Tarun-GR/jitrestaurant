@@ -21,7 +21,14 @@ router.get('/dashboard', requireAuth, flashToLocals, async (req, res) => {
     });
   } catch (e) {
     console.error('Dashboard error:', e);
-    res.render('dashboard', { user: req.session.user, error: e.message });
+    res.render('dashboard', {
+      user: req.session.user,
+      dishes: [],
+      inventory: [],
+      orders: [],
+      sales: [],
+      error: e.message
+    });
   }
 });
 
@@ -35,7 +42,7 @@ router.get('/menu', requireAuth, flashToLocals, async (req, res) => {
     const [dishes, ingredients] = await Promise.all([db.fetchAllDishes(), db.fetchIngredients()]);
     res.render('menu', { user: req.session.user, dishes: dishes || [], ingredients: ingredients || [], error: null });
   } catch (e) {
-    res.render('menu', { user: req.session.user, error: e.message });
+    res.render('menu', { user: req.session.user, dishes: [], ingredients: [], error: e.message });
   }
 });
 
@@ -54,7 +61,7 @@ router.get('/inventory', requireAuth, flashToLocals, async (req, res) => {
       error: null
     });
   } catch (e) {
-    res.render('inventory', { user: req.session.user, error: e.message });
+    res.render('inventory', { user: req.session.user, inventory: [], batches: [], suppliers: [], error: e.message });
   }
 });
 
@@ -63,7 +70,7 @@ router.get('/orders', requireAuth, flashToLocals, async (req, res) => {
     const [orders, sales] = await Promise.all([db.fetchOrders(), db.fetchSales()]);
     res.render('orders', { user: req.session.user, orders: orders || [], sales: sales || [], error: null });
   } catch (e) {
-    res.render('orders', { user: req.session.user, error: e.message });
+    res.render('orders', { user: req.session.user, orders: [], sales: [], error: e.message });
   }
 });
 

@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const { MONGODB_URI } = require('../config');
 
+// Fail fast if DB is unreachable (avoid long buffering/hangs)
+mongoose.set('bufferCommands', false);
+
 // --- Schemas (match your SQL structure for compatibility) ---
 const UserSchema = new mongoose.Schema({
   username: String,
@@ -121,7 +124,10 @@ async function connect() {
   try {
     await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 10_000,
-      connectTimeoutMS: 10_000
+      connectTimeoutMS: 10_000,
+      // Some hosts prefer IPv4; avoids IPv6-related TLS handshake issues
+      autoSelectFamily: false,
+      family: 4
     });
     isConnected = true;
     console.log('MongoDB connected');
