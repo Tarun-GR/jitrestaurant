@@ -39,7 +39,7 @@ app.use('/static', express.static(staticPath));
 let sessionStore;
 try {
   if (MONGODB_URI) {
-    sessionStore = MongoStore.create({ mongoUrl: MONGODB_URI, dbName: 'inventory_db' });
+    sessionStore = MongoStore.create({ mongoUrl: MONGODB_URI, dbName: 'jitrestaurant' });
   }
 } catch (e) {
   console.error('Failed to initialize MongoDB session store:', e && e.message ? e.message : e);
@@ -88,7 +88,9 @@ db.connect()
     console.log('MongoDB: connected (database: "' + dbName + '")');
     try {
       await conn.db.command({ ping: 1 });
-      console.log('MongoDB: ping OK — database is reachable');
+      const mongoose = require('mongoose');
+      const host = (mongoose.connection && mongoose.connection.host) ? mongoose.connection.host : 'see MONGODB_URI';
+      console.log('MongoDB: ping OK (cluster: ' + host + ') — in Atlas, open this cluster → database "jitrestaurant" → collection "users"');
     } catch (e) {
       console.error('MongoDB: ping failed —', e && e.message ? e.message : e);
     }

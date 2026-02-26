@@ -16,6 +16,7 @@ router.get('/login', flashToLocals, (req, res) => {
 router.post('/login', async (req, res) => {
   const email = (req.body.email || '').trim();
   const password = (req.body.pswd || '').trim();
+  console.log('Login attempt:', email || '(no email)');
   if (!email || !password) {
     req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Email and password are required.' }]);
     return res.redirect('/login');
@@ -26,6 +27,7 @@ router.post('/login', async (req, res) => {
   try {
     const user = await db.findUserByEmailAndPassword(email, hashed);
     if (user) {
+      console.log('Login success:', user.email);
       req.session.user = { id: user.id, username: user.username, email: user.email, is_admin: false };
       req.session.permanent = true;
       const loginId = await db.logLogin(user.id, user.username, 'user', ip);
@@ -41,11 +43,12 @@ router.post('/login', async (req, res) => {
       });
       return;
     }
+    console.log('Login: user not found for', email);
     await db.logUserActivity(null, email, 'user', 'Login Failed', 'Invalid credentials', ip, 'failed');
     req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Invalid email or password' }]);
     return res.redirect('/login');
   } catch (e) {
-    console.error('Login error:', e);
+    console.error('Login error:', e.message || e);
     req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'An error occurred during login.' }]);
     return res.redirect('/login');
   }
@@ -125,14 +128,17 @@ router.post('/signup', async (req, res) => {
   }
 
   const hashed = hashPassword(password);
+  console.log('Signup attempt:', email);
   try {
     const existing = await db.findExistingUser(username, email);
     if (existing) {
+      console.log('Signup: username or email already exists');
       const msg = existing.username === username ? 'Username already exists.' : 'Email already registered.';
       req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: msg }]);
       return res.redirect('/login');
     }
     await db.createUser(username, email, phone, hashed);
+    console.log('Signup success:', email);
     req.session.flash = (req.session.flash || []).concat([{ category: 'success', message: 'Signup successful! Please log in.' }]);
     req.session.save((err) => {
       if (err) return res.redirect('/login');
@@ -140,6 +146,7 @@ router.post('/signup', async (req, res) => {
     });
     return;
   } catch (e) {
+    console.error('Signup error:', e.message || e, e.code ? '(code ' + e.code + ')' : '');
     if (e.code === 11000) {
       req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Username or email already exists.' }]);
     } else {

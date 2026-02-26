@@ -127,7 +127,7 @@ async function connect() {
       connectTimeoutMS: 10_000,
       autoSelectFamily: false,
       family: 4,
-      dbName: 'inventory_db'  // force this database regardless of URI path
+      dbName: 'jitrestaurant'  // force this database regardless of URI path
     });
     isConnected = true;
     console.log('MongoDB connected');
