@@ -14,7 +14,8 @@ const UserSchema = new mongoose.Schema({
 
 const DishSchema = new mongoose.Schema({
   Name: String,
-  Price: Number
+  Price: Number,
+  Category: { type: String, default: '' }
 });
 DishSchema.virtual('Dish_ID').get(function() { return this._id; });
 DishSchema.set('toJSON', { virtuals: true });
@@ -171,7 +172,22 @@ function mapDish(doc) {
 async function fetchAllDishes() {
   await connect();
   const docs = await Dish.find().lean();
-  return (docs || []).map(d => ({ ID: d._id.toString(), Name: d.Name, Price: d.Price }));
+  return (docs || []).map(d => ({ ID: d._id.toString(), Name: d.Name, Price: d.Price, Category: d.Category || '' }));
+}
+
+async function seedDishesIfEmpty() {
+  await connect();
+  const count = await Dish.countDocuments();
+  if (count > 0) return;
+  const defaultDishes = [
+    { Name: 'Butter Chicken', Price: 299, Category: 'Main Course' },
+    { Name: 'Paneer Tikka', Price: 249, Category: 'Starter' },
+    { Name: 'Garlic Naan', Price: 59, Category: 'Bread' },
+    { Name: 'Veg Biryani', Price: 199, Category: 'Main Course' },
+    { Name: 'Masala Dosa', Price: 89, Category: 'Breakfast' }
+  ];
+  await Dish.insertMany(defaultDishes);
+  console.log('Seeded 5 default dishes for staff ordering.');
 }
 
 async function fetchIngredients() {
@@ -463,6 +479,7 @@ async function createSupplier(name, contactInfo, itemsSupplied) {
 module.exports = {
   connect,
   getConnection,
+  seedDishesIfEmpty,
   fetchAllDishes,
   fetchIngredients,
   fetchInventory,

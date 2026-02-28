@@ -91,6 +91,7 @@ db.connect()
       const mongoose = require('mongoose');
       const host = (mongoose.connection && mongoose.connection.host) ? mongoose.connection.host : 'see MONGODB_URI';
       console.log('MongoDB: ping OK (cluster: ' + host + ') — in Atlas, open this cluster → database "jitrestaurant" → collection "users"');
+      await db.seedDishesIfEmpty();
     } catch (e) {
       console.error('MongoDB: ping failed —', e && e.message ? e.message : e);
     }
