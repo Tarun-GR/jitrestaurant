@@ -5,7 +5,7 @@ const { requireAdmin, flashToLocals, hashPassword } = require('../middleware/aut
 
 router.get('/admin_landing', requireAdmin, flashToLocals, async (req, res) => {
   try {
-    const [customer_orders, inventory_batches, inventory_items, sales, suppliers, order_details, today_orders, concluded_sales, is_today_concluded] = await Promise.all([
+    const [customer_orders, inventory_batches, inventory_items, sales, suppliers, order_details, today_orders, today_order_details, concluded_sales, is_today_concluded, customers] = await Promise.all([
       db.fetchOrders(),
       db.fetchBatches(),
       db.fetchInventory(),
@@ -13,8 +13,10 @@ router.get('/admin_landing', requireAdmin, flashToLocals, async (req, res) => {
       db.fetchSuppliers(),
       db.fetchRecentOrders(),
       db.fetchTodaysOrdersForConclusion(),
+      db.fetchTodaysOrderDetails(),
       db.fetchConcludedSales(),
-      db.isTodayAlreadyConcluded()
+      db.isTodayAlreadyConcluded(),
+      db.fetchCustomers()
     ]);
     res.render('admin_landing', {
       admin_name: req.session.user.username,
@@ -25,8 +27,10 @@ router.get('/admin_landing', requireAdmin, flashToLocals, async (req, res) => {
       suppliers,
       order_details,
       today_orders: today_orders || [],
+      today_order_details: today_order_details || [],
       concluded_sales: concluded_sales || [],
       is_today_concluded: !!is_today_concluded,
+      customers: customers || [],
       error: null
     });
   } catch (e) {
@@ -40,8 +44,10 @@ router.get('/admin_landing', requireAdmin, flashToLocals, async (req, res) => {
       suppliers: [],
       order_details: [],
       today_orders: [],
+      today_order_details: [],
       concluded_sales: [],
       is_today_concluded: false,
+      customers: [],
       error: e.message
     });
   }

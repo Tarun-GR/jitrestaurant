@@ -577,6 +577,42 @@
             </table>
         </div>
 
+        <!-- Customers -->
+        <div class="table-container">
+            <div class="table-actions">
+                <h2 class="section-title">
+                    <i class="fas fa-users"></i>
+                    Customers
+                </h2>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (customers && customers.length) { %>
+                        <% (customers || []).forEach(function(cust) { %>
+                        <tr>
+                            <td>#<%= cust.ID %></td>
+                            <td><%= cust.Name || 'N/A' %></td>
+                            <td><%= cust.Phone_Number || '—' %></td>
+                            <td><%= cust.Email || '—' %></td>
+                        </tr>
+                        <% }); %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="4" class="no-data">No customers yet (customers appear when staff places orders with customer details)</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+
         <!-- Order Details -->
         <div class="table-container">
             <div class="table-actions">
@@ -875,23 +911,34 @@
             <p style="color: var(--text-secondary);">No orders for today yet.</p>
             <button type="button" onclick="closeConcludeModal()" style="margin-top:1rem; background:var(--accent-color); color:#fff; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Close</button>
           <% } else { %>
-            <p style="color: var(--text-secondary); margin-bottom:1rem;">Confirm to record today's sales in MongoDB. Summary below:</p>
-            <table class="data-table" style="margin-bottom:1rem;">
-              <thead>
-                <tr><th>#</th><th>Order ID</th><th>Amount</th></tr>
-              </thead>
-              <tbody>
-                <% var totalDay = 0; (today_orders || []).forEach(function(ord, idx) { totalDay += Number(ord.Total_Amount) || 0; %>
-                <tr>
-                  <td><%= idx + 1 %></td>
-                  <td>#<%= ord.Order_ID %></td>
-                  <td>₹<%= (Number(ord.Total_Amount) || 0).toFixed(2) %></td>
-                </tr>
-                <% }); %>
-              </tbody>
-            </table>
-            <p style="font-weight:600; margin-bottom:1rem;">Number of orders: <strong><%= (today_orders || []).length %></strong></p>
+            <p style="color: var(--text-secondary); margin-bottom:1rem;">Confirm to record today's sales in MongoDB. Customer order details below (same as Order Details in dashboard):</p>
+            <% var totalDay = 0; %>
+            <% (today_orders || []).forEach(function(ord, idx) {
+              totalDay += Number(ord.Total_Amount) || 0;
+              var orderDetails = (typeof today_order_details !== 'undefined' && today_order_details) ? today_order_details.filter(function(d) { return d.Order_ID === ord.Order_ID; }) : [];
+            %>
+            <div style="margin-bottom:1.5rem; padding:0.75rem; background:rgba(255,255,255,0.05); border-radius:8px;">
+              <p style="font-weight:600; margin-bottom:0.5rem;">Order #<%= ord.Order_ID %> — <%= ord.Customer_Name %> — ₹<%= (Number(ord.Total_Amount) || 0).toFixed(2) %></p>
+              <table class="data-table" style="margin:0; font-size:0.9em;">
+                <thead>
+                  <tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr>
+                </thead>
+                <tbody>
+                  <% orderDetails.forEach(function(d) { %>
+                  <tr>
+                    <td><%= d.Item_Name %></td>
+                    <td><%= d.Quantity %></td>
+                    <td>₹<%= Number(d.Unit_Price).toFixed(2) %></td>
+                    <td>₹<%= Number(d.Subtotal).toFixed(2) %></td>
+                  </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+            <% }); %>
+            <p style="font-weight:600; margin-bottom:0.5rem;">Number of orders: <strong><%= (today_orders || []).length %></strong></p>
             <p style="font-weight:600; margin-bottom:1rem;">Total: <strong>₹<%= (typeof totalDay !== 'undefined' ? totalDay : 0).toFixed(2) %></strong></p>
+            <p style="color: var(--text-secondary); font-size:0.9em; margin-bottom:1rem;">After you confirm, this list will disappear here and appear in the Concluded daily sales and Sales (by item) sections below, and in MongoDB (sales and concludedsales collections).</p>
             <div style="display:flex; gap:1rem;">
               <button type="button" onclick="closeConcludeModal()" style="background:#888; color:#fff; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Cancel</button>
               <button type="button" id="confirmSalesBtn" style="background:var(--success-color); color:#fff; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Confirm sales</button>

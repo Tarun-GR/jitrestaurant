@@ -305,6 +305,25 @@ async function fetchTodaysOrdersForConclusion() {
   }));
 }
 
+async function fetchTodaysOrderDetails() {
+  await connect();
+  const start = getStartOfTodayUTC();
+  const end = getEndOfTodayUTC();
+  const orderDocs = await Order.find({
+    Order_Date: { $gte: start, $lte: end }
+  }).lean();
+  const orderIds = (orderDocs || []).map(o => o._id);
+  if (orderIds.length === 0) return [];
+  const details = await OrderDetail.find({ Order_ID: { $in: orderIds } }).lean();
+  return (details || []).map(d => ({
+    Order_ID: d.Order_ID?.toString(),
+    Item_Name: d.Item_Name || 'N/A',
+    Quantity: d.Quantity || 0,
+    Unit_Price: d.Unit_Price != null ? Number(d.Unit_Price) : 0,
+    Subtotal: d.Subtotal != null ? Number(d.Subtotal) : 0
+  }));
+}
+
 async function fetchConcludedSales() {
   await connect();
   const docs = await ConcludedSales.find().sort({ Sale_Date: -1 }).lean();
@@ -510,9 +529,10 @@ async function createCustomer(name, phone, email) {
 
 async function createOrderWithItems(customerName, orderDate, total, status, items, customerId) {
   await connect();
+  const orderDateNormalized = orderDate instanceof Date ? orderDate : new Date(orderDate || Date.now());
   const orderDoc = {
     Customer_Name: customerName,
-    Order_Date: orderDate || new Date(),
+    Order_Date: orderDateNormalized,
     Total_Amount: total,
     Status: status || 'Pending'
   };
@@ -524,9 +544,13 @@ async function createOrderWithItems(customerName, orderDate, total, status, item
   const order = await Order.create(orderDoc);
   for (const item of items) {
     const subtotal = Number(item.price) * Number(item.quantity);
+    let itemObjId = item.id;
+    try {
+      itemObjId = new mongoose.Types.ObjectId(item.id);
+    } catch (_) {}
     await OrderDetail.create({
       Order_ID: order._id,
-      Item_ID: item.id,
+      Item_ID: itemObjId,
       Item_Name: item.name,
       Quantity: item.quantity,
       Unit_Price: item.price,
@@ -629,6 +653,7 @@ module.exports = {
   fetchOrders,
   fetchSales,
   fetchTodaysOrdersForConclusion,
+  fetchTodaysOrderDetails,
   fetchConcludedSales,
   isTodayAlreadyConcluded,
   concludeTodaysSales,
