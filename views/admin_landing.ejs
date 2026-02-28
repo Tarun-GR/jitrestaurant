@@ -305,6 +305,21 @@
     <% } %>
 
     <section class="table-section">
+        <!-- Add staff member -->
+        <div class="table-container">
+            <div class="table-actions">
+                <h2 class="section-title">
+                    <i class="fas fa-user-plus"></i>
+                    Staff members
+                </h2>
+                <button type="button" class="add-button" onclick="openStaffModal()">
+                    <i class="fas fa-plus"></i>
+                    Add staff member
+                </button>
+            </div>
+            <p style="color: var(--text-secondary); margin: 0;">Add staff with username and password. They can then log in from the Staff Login page.</p>
+        </div>
+
         <!-- Customer Orders -->
         <div class="table-container">
             <div class="table-actions">
@@ -809,5 +824,34 @@
     };
     </script>
     <!-- End New Supplier Modal -->
+
+    <!-- Add staff member Modal -->
+    <div id="staffModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:2000; align-items:center; justify-content:center;">
+      <div style="background:#222; color:#fff; padding:2rem; border-radius:10px; min-width:320px; max-width:90vw; position:relative;">
+        <h2 style="margin-bottom:1rem;"><i class="fas fa-user-plus"></i> Add staff member</h2>
+        <p style="color: var(--text-secondary); font-size:0.9em; margin-bottom:1rem;">The new staff can log in from the restaurant login page using these credentials.</p>
+        <form id="staffForm" action="/admin/add_staff" method="POST">
+          <div style="margin-bottom:1rem;">
+            <label for="staff_username">Username:</label><br>
+            <input type="text" id="staff_username" name="username" required placeholder="e.g. john" style="width:100%;padding:0.5rem; color:#222;">
+          </div>
+          <div style="margin-bottom:1rem;">
+            <label for="staff_password">Password (min 6 characters):</label><br>
+            <input type="password" id="staff_password" name="password" required minlength="6" placeholder="••••••••" style="width:100%;padding:0.5rem; color:#222;">
+          </div>
+          <div style="display:flex; gap:1rem; justify-content:flex-end;">
+            <button type="button" onclick="closeStaffModal()" style="background:#888; color:#fff; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Cancel</button>
+            <button type="submit" style="background:var(--accent-color); color:#fff; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Add staff</button>
+          </div>
+        </form>
+        <button type="button" onclick="closeStaffModal()" style="position:absolute; top:10px; right:10px; background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;">&times;</button>
+      </div>
+    </div>
+    <script>
+    const staffModal = document.getElementById('staffModal');
+    function openStaffModal() { staffModal.style.display = 'flex'; }
+    function closeStaffModal() { staffModal.style.display = 'none'; }
+    </script>
+    <!-- End Add staff Modal -->
 </body>
 </html> 

@@ -110,8 +110,12 @@
                     <input type="text" id="customer_name" name="customer_name" required placeholder="Enter customer name" autocomplete="name">
                 </div>
                 <div class="form-group">
-                    <label for="customer_phone">Phone (optional)</label>
-                    <input type="text" id="customer_phone" name="customer_phone" placeholder="10-digit phone">
+                    <label for="customer_phone">Phone (optional, 10 digits only)</label>
+                    <input type="text" id="customer_phone" name="customer_phone" placeholder="10-digit mobile number" autocomplete="tel" maxlength="10" pattern="[0-9]{10}" inputmode="numeric" title="Enter exactly 10 digits">
+                </div>
+                <div class="form-group">
+                    <label for="customer_email">Email (optional)</label>
+                    <input type="email" id="customer_email" name="customer_email" placeholder="customer@example.com" autocomplete="email">
                 </div>
                 <button type="submit" class="submit-btn" id="placeOrderBtn">
                     <i class="fas fa-check"></i> Place order
@@ -133,9 +137,18 @@
     </form>
     <script>
         document.getElementById('placeOrderForm').addEventListener('submit', function(e) {
+            var phone = (document.getElementById('customer_phone').value || '').trim().replace(/\D/g, '');
+            if (phone.length > 0 && phone.length !== 10) {
+                e.preventDefault();
+                alert('Please enter a valid 10-digit mobile number or leave phone empty.');
+                return;
+            }
             var btn = document.getElementById('placeOrderBtn');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Placing order…';
+        });
+        document.getElementById('customer_phone').addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '').slice(0, 10);
         });
     </script>
 </body>

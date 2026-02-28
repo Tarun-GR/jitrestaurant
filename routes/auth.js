@@ -13,12 +13,22 @@ router.get('/login', flashToLocals, (req, res) => {
   res.render('login');
 });
 
+function isValidGmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  const lower = email.trim().toLowerCase();
+  return lower.endsWith('@gmail.com') && lower.length > 11;
+}
+
 router.post('/login', async (req, res) => {
   const email = (req.body.email || '').trim();
   const password = (req.body.pswd || '').trim();
   console.log('Login attempt:', email || '(no email)');
   if (!email || !password) {
     req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Email and password are required.' }]);
+    return res.redirect('/login');
+  }
+  if (!isValidGmail(email)) {
+    req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Please enter a valid Gmail address. Email must end with @gmail.com (check for spelling mistakes).' }]);
     return res.redirect('/login');
   }
   const hashed = hashPassword(password);
@@ -45,7 +55,7 @@ router.post('/login', async (req, res) => {
     }
     console.log('Login: user not found for', email);
     await db.logUserActivity(null, email, 'user', 'Login Failed', 'Invalid credentials', ip, 'failed');
-    req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Invalid email or password' }]);
+    req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Entered wrong password.' }]);
     return res.redirect('/login');
   } catch (e) {
     console.error('Login error:', e.message || e);
@@ -77,30 +87,40 @@ router.post('/admin_login', async (req, res) => {
     return;
   }
   await db.logUserActivity(null, username, 'admin', 'Login Failed', 'Invalid admin credentials', ip, 'failed');
-  req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Invalid admin credentials' }]);
+  req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Incorrect password.' }]);
   return res.redirect('/restaurant_login');
 });
 
 router.post('/staff_login', async (req, res) => {
-  const username = req.body.username;
-  const password = req.body.password;
+  const username = (req.body.username || '').trim();
+  const password = req.body.password || '';
   const ip = req.ip || req.connection.remoteAddress;
 
-  if (username === 'staff' && password === 'staff123') {
-    req.session.user = { id: 1, username: 'staff', email: 'staff@jitrestaurant.com', is_admin: false };
-    req.session.permanent = true;
-    const loginId = await db.logLogin(1, username, 'staff', ip);
-    req.session.login_id = loginId;
-    await db.logUserActivity(1, username, 'staff', 'Login', 'Staff login successful', ip);
-    req.session.flash = (req.session.flash || []).concat([{ category: 'success', message: 'Welcome back!' }]);
-    req.session.save((err) => {
-      if (err) return res.redirect('/restaurant_login');
-      res.redirect('/staff_landing');
-    });
-    return;
+  if (!username || !password) {
+    req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Username and password are required.' }]);
+    return res.redirect('/restaurant_login');
+  }
+  try {
+    const hashed = hashPassword(password);
+    const staff = await db.findStaffByUsernameAndPassword(username, hashed);
+    if (staff) {
+      req.session.user = { id: staff.id, username: staff.username, email: '', is_admin: false };
+      req.session.permanent = true;
+      const loginId = await db.logLogin(staff.id, staff.username, 'staff', ip);
+      req.session.login_id = loginId;
+      await db.logUserActivity(staff.id, staff.username, 'staff', 'Login', 'Staff login successful', ip);
+      req.session.flash = (req.session.flash || []).concat([{ category: 'success', message: 'Welcome back!' }]);
+      req.session.save((err) => {
+        if (err) return res.redirect('/restaurant_login');
+        res.redirect('/staff_landing');
+      });
+      return;
+    }
+  } catch (e) {
+    console.error('Staff login error:', e);
   }
   await db.logUserActivity(null, username, 'staff', 'Login Failed', 'Invalid staff credentials', ip, 'failed');
-  req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Invalid staff credentials' }]);
+  req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Incorrect password.' }]);
   return res.redirect('/restaurant_login');
 });
 
@@ -112,6 +132,10 @@ router.post('/signup', async (req, res) => {
 
   if (!username || !email || !phone || !password) {
     req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'All fields are required.' }]);
+    return res.redirect('/login');
+  }
+  if (!isValidGmail(email)) {
+    req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Please enter a valid Gmail address. Email must end with @gmail.com (check for spelling mistakes).' }]);
     return res.redirect('/login');
   }
   if (password.length < 6) {

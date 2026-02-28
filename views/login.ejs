@@ -111,10 +111,10 @@
 		<input type="checkbox" id="chk" aria-hidden="true">
 
 		<div class="signup">
-			<form method="POST" action="/signup">
+			<form method="POST" action="/signup" id="signupForm">
 				<label for="chk" aria-hidden="true">Sign up</label>
 				<input type="text" name="txt" placeholder="User name" required>
-				<input type="email" name="email" placeholder="Email" required>
+				<input type="email" name="email" id="signup-email" placeholder="Email (must end with @gmail.com)" required>
 				<input type="number" name="broj" placeholder="Phone Number" required>
 				<div class="password-container">
 					<input type="password" name="pswd" placeholder="Password" required>
@@ -125,9 +125,9 @@
 		</div>
 
 		<div class="login">
-			<form method="POST" action="/login">
+			<form method="POST" action="/login" id="loginForm">
 				<label for="chk" aria-hidden="true">Login</label>
-				<input type="email" name="email" placeholder="Email" required>
+				<input type="email" name="email" id="login-email" placeholder="Email (must end with @gmail.com)" required>
 				<div class="password-container">
 					<input type="password" name="pswd" placeholder="Password" required>
 					<i class="fas fa-eye-slash toggle-password"></i>
@@ -144,6 +144,30 @@
 	<% } %>
 
 	<script>
+		function isValidGmail(email) {
+			if (!email || typeof email !== 'string') return false;
+			var lower = email.trim().toLowerCase();
+			return lower.endsWith('@gmail.com') && lower.length > 11;
+		}
+
+		document.getElementById('signupForm').addEventListener('submit', function(e) {
+			var email = (document.getElementById('signup-email').value || '').trim();
+			if (!isValidGmail(email)) {
+				e.preventDefault();
+				alert('Please enter a valid Gmail address. Email must end with @gmail.com (check for spelling mistakes).');
+				return false;
+			}
+		});
+
+		document.getElementById('loginForm').addEventListener('submit', function(e) {
+			var email = (document.getElementById('login-email').value || '').trim();
+			if (!isValidGmail(email)) {
+				e.preventDefault();
+				alert('Please enter a valid Gmail address. Email must end with @gmail.com (check for spelling mistakes).');
+				return false;
+			}
+		});
+
 		document.querySelectorAll('.toggle-password').forEach(icon => {
 			icon.addEventListener('click', () => {
 				const input = icon.previousElementSibling;
@@ -158,6 +182,18 @@
 				}
 			});
 		});
+
+		// Popup for error (e.g. wrong password) and success (e.g. signup successful)
+		(function() {
+			var errorEl = document.querySelector('.flash-message.error');
+			if (errorEl && errorEl.textContent.trim()) {
+				alert(errorEl.textContent.trim());
+			}
+			var successEl = document.querySelector('.flash-message.success');
+			if (successEl && successEl.textContent.trim()) {
+				alert(successEl.textContent.trim());
+			}
+		})();
 	</script>
 </body>
 </html>

@@ -265,6 +265,10 @@
         });
 
         const flashMessages = document.querySelectorAll('.flash-message');
+        const errorMsg = document.querySelector('.flash-message.error');
+        if (errorMsg && errorMsg.textContent.trim()) {
+            alert(errorMsg.textContent.trim());
+        }
         flashMessages.forEach(message => {
             setTimeout(() => {
                 message.style.opacity = '0';

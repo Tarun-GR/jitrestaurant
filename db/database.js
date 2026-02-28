@@ -47,6 +47,7 @@ const CustomerSchema = new mongoose.Schema({
 });
 
 const OrderSchema = new mongoose.Schema({
+  Customer_ID: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', default: null },
   Customer_Name: String,
   Order_Date: { type: Date, default: Date.now },
   Total_Amount: Number,
@@ -103,8 +104,15 @@ const DishIngredientSchema = new mongoose.Schema({
   Quantity: Number
 });
 
+const StaffSchema = new mongoose.Schema({
+  Username: { type: String, required: true, trim: true },
+  Password: { type: String, required: true }
+});
+StaffSchema.index({ Username: 1 }, { unique: true });
+
 // Models
 const User = mongoose.model('User', UserSchema);
+const Staff = mongoose.model('Staff', StaffSchema);
 const Dish = mongoose.model('Dish', DishSchema);
 const InventoryItem = mongoose.model('InventoryItem', InventoryItemSchema);
 const InventoryBatch = mongoose.model('InventoryBatch', InventoryBatchSchema);
@@ -397,14 +405,32 @@ async function createUser(username, email, phone, hashedPassword) {
   return doc._id.toString();
 }
 
-async function createOrderWithItems(customerName, orderDate, total, status, items) {
+async function createCustomer(name, phone, email) {
   await connect();
-  const order = await Order.create({
+  const phoneStr = (phone || '').toString().replace(/\D/g, '');
+  const phoneFinal = phoneStr.length === 10 ? phoneStr : '';
+  const doc = await Customer.create({
+    Name: (name || '').toString().trim(),
+    Phone_Number: phoneFinal,
+    Email: (email || '').toString().trim()
+  });
+  return doc._id.toString();
+}
+
+async function createOrderWithItems(customerName, orderDate, total, status, items, customerId) {
+  await connect();
+  const orderDoc = {
     Customer_Name: customerName,
     Order_Date: orderDate || new Date(),
     Total_Amount: total,
     Status: status || 'Pending'
-  });
+  };
+  if (customerId) {
+    try {
+      orderDoc.Customer_ID = new mongoose.Types.ObjectId(customerId);
+    } catch (_) {}
+  }
+  const order = await Order.create(orderDoc);
   for (const item of items) {
     const subtotal = Number(item.price) * Number(item.quantity);
     await OrderDetail.create({
@@ -476,10 +502,33 @@ async function createSupplier(name, contactInfo, itemsSupplied) {
   return true;
 }
 
+async function createStaff(username, hashedPassword) {
+  await connect();
+  const uname = (username || '').toString().trim();
+  if (!uname) return null;
+  const existing = await Staff.findOne({ Username: new RegExp('^' + uname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') });
+  if (existing) return null;
+  const doc = await Staff.create({ Username: uname, Password: hashedPassword });
+  return doc._id.toString();
+}
+
+async function findStaffByUsernameAndPassword(username, hashedPassword) {
+  await connect();
+  const uname = (username || '').toString().trim();
+  if (!uname) return null;
+  const doc = await Staff.findOne({
+    Username: new RegExp('^' + uname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i'),
+    Password: hashedPassword
+  }).lean();
+  if (!doc) return null;
+  return { id: doc._id.toString(), username: doc.Username };
+}
+
 module.exports = {
   connect,
   getConnection,
   seedDishesIfEmpty,
+  createCustomer,
   fetchAllDishes,
   fetchIngredients,
   fetchInventory,
@@ -504,5 +553,7 @@ module.exports = {
   createCustomerAndOrder,
   createBatch,
   createItem,
-  createSupplier
+  createSupplier,
+  createStaff,
+  findStaffByUsernameAndPassword
 };

@@ -88,12 +88,23 @@ router.post('/create_order', requireAuth, async (req, res) => {
       return res.redirect('/staff/checkout');
     }
     const total = data.total != null ? Number(data.total) : items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0);
+    let customerId = null;
+    if (isFormPost) {
+      const customerPhone = (data.customer_phone || req.body.customer_phone || '').toString().replace(/\D/g, '');
+      const customerEmail = (data.customer_email || req.body.customer_email || '').trim();
+      if (customerPhone.length > 0 && customerPhone.length !== 10) {
+        req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Mobile number must be exactly 10 digits.' }]);
+        return res.redirect('/staff/checkout');
+      }
+      customerId = await db.createCustomer(customerName, customerPhone, customerEmail);
+    }
     const orderId = await db.createOrderWithItems(
       customerName || (data.customer_name || ''),
       data.order_date || new Date(),
       total,
       data.status || 'Pending',
-      items
+      items,
+      customerId
     );
     if (!orderId) {
       if (isFormPost) {
