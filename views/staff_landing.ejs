@@ -419,7 +419,7 @@
                                 <td><%= order.Order_Date %></td>
                                 <td>₹<%= order.Total_Amount != null ? Number(order.Total_Amount).toFixed(2) : '0.00' %></td>
                                 <td>
-                                    <select class="status-select" onchange="changeStatus(<%= order.Order_ID %>, this.value)">
+                                    <select class="status-select" onchange="changeStatus('<%= order.Order_ID %>', this.value)">
                                         <% ['Pending', 'Preparing', 'Ready', 'Served', 'Cancelled'].forEach(function(status) { %>
                                             <option value="<%= status %>" <%= order.Status === status ? 'selected' : '' %>><%= status %></option>
                                         <% }); %>
@@ -466,7 +466,7 @@
                                 <td>₹<%= Number(dish.Price).toFixed(2) %></td>
                                 <td><%= dish.Category || 'N/A' %></td>
                                 <td>
-                                    <button class="add-to-cart-btn" onclick="addToCart(<%= dish.ID %>, '<%= dish.Name %>', <%= dish.Price %>)">
+                                    <button type="button" class="add-to-cart-btn" data-dish-id="<%= dish.ID %>" data-dish-name="<%= (dish.Name || '').replace(/"/g, '&quot;') %>" data-dish-price="<%= Number(dish.Price) %>">
                                         <i class="fas fa-cart-plus"></i> Add
                                     </button>
                                 </td>
@@ -537,9 +537,9 @@
             <span>Total:</span>
             <span id="cartTotal">₹0.00</span>
         </div>
-        <button class="checkout-btn" onclick="checkout()">
+        <button type="button" class="checkout-btn" id="proceedToCheckoutBtn">
             <i class="fas fa-cash-register"></i>
-            Checkout
+            Proceed to Checkout
         </button>
     </div>
 
@@ -555,21 +555,33 @@
         let cart = [];
 
         function addToCart(id, name, price) {
-            const existingItem = cart.find(item => item.id === id);
+            const sid = String(id);
+            const existingItem = cart.find(item => String(item.id) === sid);
             if (existingItem) {
                 existingItem.quantity += 1;
             } else {
-                cart.push({ id, name, price, quantity: 1 });
+                cart.push({ id: sid, name: name || '', price: Number(price) || 0, quantity: 1 });
             }
             updateCartDisplay();
         }
 
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.add-to-cart-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const id = this.getAttribute('data-dish-id');
+                    const name = this.getAttribute('data-dish-name') || '';
+                    const price = parseFloat(this.getAttribute('data-dish-price')) || 0;
+                    addToCart(id, name.replace(/&quot;/g, '"'), price);
+                });
+            });
+        });
+
         function updateQuantity(id, change) {
-            const item = cart.find(item => item.id === id);
+            const item = cart.find(i => String(i.id) === String(id));
             if (item) {
                 item.quantity += change;
                 if (item.quantity <= 0) {
-                    cart = cart.filter(i => i.id !== id);
+                    cart = cart.filter(i => String(i.id) !== String(id));
                 }
             }
             updateCartDisplay();
@@ -583,16 +595,17 @@
             cartItems.innerHTML = cart.map(item => {
                 const itemTotal = item.price * item.quantity;
                 total += itemTotal;
+                const safeId = String(item.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 return `
                     <div class="cart-item">
                         <div class="cart-item-details">
-                            <div class="cart-item-name">${item.name}</div>
+                            <div class="cart-item-name">${item.name.replace(/</g, '&lt;')}</div>
                             <div class="cart-item-price">₹${item.price.toFixed(2)} × ${item.quantity}</div>
                         </div>
                         <div class="cart-item-quantity">
-                            <button class="quantity-btn" onclick="updateQuantity(${item.id}, -1)">-</button>
+                            <button type="button" class="quantity-btn" onclick="updateQuantity('${safeId}', -1)">-</button>
                             <span>${item.quantity}</span>
-                            <button class="quantity-btn" onclick="updateQuantity(${item.id}, 1)">+</button>
+                            <button type="button" class="quantity-btn" onclick="updateQuantity('${safeId}', 1)">+</button>
                         </div>
                     </div>
                 `;
@@ -601,70 +614,27 @@
             cartTotal.textContent = `₹${total.toFixed(2)}`;
         }
 
-        function checkout() {
+        document.getElementById('proceedToCheckoutBtn').addEventListener('click', function() {
             if (cart.length === 0) {
                 alert('Please add items to cart before checking out.');
                 return;
             }
-
-            let customerName = '';
-            while (!customerName || customerName.trim() === '') {
-                customerName = prompt('Please enter customer name:');
-                if (customerName === null) {  // User clicked Cancel
-                    return;
-                }
-                if (!customerName || customerName.trim() === '') {
-                    alert('Customer name is required. Please try again.');
-                }
-            }
-
-            // Get current date in MySQL format
-            const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-
-            // Calculate total
-            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-            // Prepare order data
-            const orderData = {
-                customer_name: customerName.trim(),
-                order_date: currentDate,
-                status: 'Order Placed',
-                items: cart.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    quantity: item.quantity,
-                    price: item.price
-                })),
-                total: total
-            };
-
-            console.log('Sending order data:', orderData);
-
-            // Send order to server
-            fetch('/create_order', {
+            fetch('/staff/set_cart', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(orderData)
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: cart.map(function(item) {
+                        return { id: item.id, name: item.name, price: item.price, quantity: item.quantity };
+                    })
+                })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Order placed successfully!');
-                    cart = [];
-                    updateCartDisplay();
-                    location.reload();
-                } else {
-                    console.error('Server error:', data.error);
-                    alert('Error placing order: ' + data.error);
-                }
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.redirect) window.location.href = data.redirect;
+                else alert(data.error || 'Could not proceed to checkout.');
             })
-            .catch(error => {
-                console.error('Network error:', error);
-                alert('Error placing order. Please try again.');
-            });
-        }
+            .catch(function() { alert('Could not proceed to checkout.'); });
+        });
 
         function changeStatus(orderId, newStatus) {
             fetch('/update_order_status', {

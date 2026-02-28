@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - Staff - JIT Restaurant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --dark-bg: #121212;
+            --dark-card: rgba(30, 30, 30, 0.85);
+            --text-primary: #ffffff;
+            --text-secondary: #e0e0e0;
+            --accent-color: #4CAF50;
+            --accent-dark: #388E3C;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--accent-color);
+            text-decoration: none;
+            margin-bottom: 1.5rem;
+        }
+        .back-link:hover { color: var(--accent-dark); }
+        h1 { margin-bottom: 1.5rem; font-size: 1.8em; }
+        .checkout-layout {
+            max-width: 900px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        @media (max-width: 768px) { .checkout-layout { grid-template-columns: 1fr; } }
+        .panel {
+            background: var(--dark-card);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .panel h2 { font-size: 1.3em; margin-bottom: 1rem; color: var(--accent-color); }
+        .cart-list { list-style: none; }
+        .cart-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: var(--text-secondary);
+        }
+        .cart-list li:last-child { border-bottom: none; }
+        .cart-total { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2); font-weight: 600; color: var(--text-primary); }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.4rem; color: var(--text-secondary); font-size: 0.95em; }
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+        .form-group input:focus { outline: none; border-color: var(--accent-color); }
+        .form-group input::placeholder { color: rgba(255,255,255,0.4); }
+        .submit-btn {
+            width: 100%;
+            padding: 1rem;
+            margin-top: 0.5rem;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .submit-btn:hover { background: var(--accent-dark); }
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .flash-message { padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; }
+        .flash-message.error { background: #b71c1c; color: #fff; }
+        .flash-message.success { background: var(--accent-dark); color: #fff; }
+    </style>
+</head>
+<body>
+    <a href="/staff_landing" class="back-link"><i class="fas fa-arrow-left"></i> Back to menu</a>
+    <h1>Customer details &amp; place order</h1>
+    <% if (typeof messages !== 'undefined' && messages.length) { %>
+        <% messages.forEach(function(msg) { %>
+            <div class="flash-message <%= msg.category %>"><%= msg.message %></div>
+        <% }); %>
+    <% } %>
+    <form action="/create_order" method="post" id="placeOrderForm">
+        <div class="checkout-layout">
+            <div class="panel">
+                <h2><i class="fas fa-user"></i> Customer details</h2>
+                <div class="form-group">
+                    <label for="customer_name">Customer name *</label>
+                    <input type="text" id="customer_name" name="customer_name" required placeholder="Enter customer name" autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="customer_phone">Phone (optional)</label>
+                    <input type="text" id="customer_phone" name="customer_phone" placeholder="10-digit phone">
+                </div>
+                <button type="submit" class="submit-btn" id="placeOrderBtn">
+                    <i class="fas fa-check"></i> Place order
+                </button>
+            </div>
+            <div class="panel">
+                <h2><i class="fas fa-receipt"></i> Order summary</h2>
+                <ul class="cart-list">
+                    <% (cart || []).forEach(function(item) { %>
+                        <li>
+                            <span><%= item.name %> × <%= item.quantity %></span>
+                            <span>₹<%= (Number(item.price) * Number(item.quantity)).toFixed(2) %></span>
+                        </li>
+                    <% }); %>
+                </ul>
+                <div class="cart-total">Total: ₹<%= (typeof total !== 'undefined' ? total : 0).toFixed(2) %></div>
+            </div>
+        </div>
+    </form>
+    <script>
+        document.getElementById('placeOrderForm').addEventListener('submit', function(e) {
+            var btn = document.getElementById('placeOrderBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Placing order…';
+        });
+    </script>
+</body>
+</html>

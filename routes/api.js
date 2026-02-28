@@ -71,21 +71,53 @@ router.post('/chatbot', requireAuth, (req, res) => {
 
 router.post('/create_order', requireAuth, async (req, res) => {
   try {
-    const data = req.body;
-    if (!data || !data.items || !Array.isArray(data.items)) {
+    const data = req.body || {};
+    let items = data.items;
+    const isFormPost = !items && req.session.staffCart && req.session.staffCart.length && (data.customer_name != null || req.body.customer_name);
+    if (isFormPost) items = req.session.staffCart;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      if (isFormPost) {
+        req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Cart is empty.' }]);
+        return res.redirect('/staff/checkout');
+      }
       return res.json({ success: false, error: 'Invalid order data' });
     }
+    const customerName = (data.customer_name || req.body.customer_name || '').trim();
+    if (!customerName && isFormPost) {
+      req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Customer name is required.' }]);
+      return res.redirect('/staff/checkout');
+    }
+    const total = data.total != null ? Number(data.total) : items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0);
     const orderId = await db.createOrderWithItems(
-      data.customer_name || '',
+      customerName || (data.customer_name || ''),
       data.order_date || new Date(),
-      data.total || 0,
+      total,
       data.status || 'Pending',
-      data.items
+      items
     );
-    if (!orderId) return res.json({ success: false, error: 'Database connection failed' });
+    if (!orderId) {
+      if (isFormPost) {
+        req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: 'Database connection failed.' }]);
+        return res.redirect('/staff/checkout');
+      }
+      return res.json({ success: false, error: 'Database connection failed' });
+    }
+    if (isFormPost) {
+      req.session.staffCart = [];
+      req.session.flash = (req.session.flash || []).concat([{ category: 'success', message: 'Order placed successfully!' }]);
+      req.session.save((err) => {
+        if (err) console.error('Session save error:', err);
+        res.redirect('/staff_landing');
+      });
+      return;
+    }
     res.json({ success: true, order_id: orderId });
   } catch (e) {
     console.error('create_order error:', e);
+    if (req.session.staffCart && req.body && req.body.customer_name != null) {
+      req.session.flash = (req.session.flash || []).concat([{ category: 'error', message: e.message || 'Could not place order.' }]);
+      return res.redirect('/staff/checkout');
+    }
     res.json({ success: false, error: e.message });
   }
 });
