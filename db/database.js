@@ -76,6 +76,14 @@ const SalesSchema = new mongoose.Schema({
   Quantity_Sold: Number
 });
 
+const ConcludedSalesSchema = new mongoose.Schema({
+  Sale_Date: { type: Date, required: true },
+  Total_Amount: Number,
+  Order_Count: Number,
+  Orders: [{ Order_ID: mongoose.Schema.Types.ObjectId, Amount: Number }]
+});
+ConcludedSalesSchema.index({ Sale_Date: 1 }, { unique: true });
+
 const LoginHistorySchema = new mongoose.Schema({
   User_ID: mongoose.Schema.Types.Mixed,
   Username: String,
@@ -122,6 +130,7 @@ const Order = mongoose.model('Order', OrderSchema);
 const OrderDetail = mongoose.model('OrderDetail', OrderDetailSchema);
 const CustomerOrder = mongoose.model('CustomerOrder', CustomerOrderSchema);
 const Sales = mongoose.model('Sales', SalesSchema);
+const ConcludedSales = mongoose.model('ConcludedSales', ConcludedSalesSchema);
 const LoginHistory = mongoose.model('LoginHistory', LoginHistorySchema);
 const UserActivityLog = mongoose.model('UserActivityLog', UserActivityLogSchema);
 const DishIngredient = mongoose.model('DishIngredient', DishIngredientSchema);
@@ -270,6 +279,88 @@ async function fetchSales() {
     Quantity_Sold: d.Quantity_Sold,
     Revenue: (d.Dish_ID?.Price || 0) * (d.Quantity_Sold || 0)
   }));
+}
+
+function getStartOfTodayUTC() {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+}
+function getEndOfTodayUTC() {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+}
+
+async function fetchTodaysOrdersForConclusion() {
+  await connect();
+  const start = getStartOfTodayUTC();
+  const end = getEndOfTodayUTC();
+  const docs = await Order.find({
+    Order_Date: { $gte: start, $lte: end }
+  }).sort({ Order_Date: 1 }).lean();
+  return (docs || []).map(d => ({
+    Order_ID: d._id?.toString(),
+    Customer_Name: d.Customer_Name || 'N/A',
+    Order_Date: d.Order_Date,
+    Total_Amount: d.Total_Amount != null ? Number(d.Total_Amount) : 0
+  }));
+}
+
+async function fetchConcludedSales() {
+  await connect();
+  const docs = await ConcludedSales.find().sort({ Sale_Date: -1 }).lean();
+  return (docs || []).map(d => ({
+    Id: d._id?.toString(),
+    Sale_Date: d.Sale_Date,
+    Order_Count: d.Order_Count || 0,
+    Total_Amount: d.Total_Amount != null ? Number(d.Total_Amount) : 0
+  }));
+}
+
+async function isTodayAlreadyConcluded() {
+  await connect();
+  const start = getStartOfTodayUTC();
+  const existing = await ConcludedSales.findOne({ Sale_Date: start }).lean();
+  return !!existing;
+}
+
+async function concludeTodaysSales(ordersWithAmounts) {
+  await connect();
+  const start = getStartOfTodayUTC();
+  const existing = await ConcludedSales.findOne({ Sale_Date: start });
+  if (existing) return { ok: false, error: 'Today has already been concluded.' };
+  const total = (ordersWithAmounts || []).reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  const orderIds = (ordersWithAmounts || []).map(o => o.orderId).filter(Boolean);
+  const orderDocs = await Order.find({ _id: { $in: orderIds.map(id => new mongoose.Types.ObjectId(id)) } }).lean();
+  const ordersForDoc = orderDocs.map(o => ({
+    Order_ID: o._id,
+    Amount: Number(o.Total_Amount) || 0
+  }));
+  await ConcludedSales.create({
+    Sale_Date: start,
+    Total_Amount: total,
+    Order_Count: ordersForDoc.length,
+    Orders: ordersForDoc
+  });
+  const dishQuantities = {};
+  for (const oid of orderIds) {
+    try {
+      const details = await OrderDetail.find({ Order_ID: new mongoose.Types.ObjectId(oid) }).lean();
+      for (const od of details) {
+        const dishId = od.Item_ID && od.Item_ID.toString();
+        if (!dishId) continue;
+        dishQuantities[dishId] = (dishQuantities[dishId] || 0) + (Number(od.Quantity) || 0);
+      }
+    } catch (_) {}
+  }
+  for (const [dishId, qty] of Object.entries(dishQuantities)) {
+    const dishObjId = new mongoose.Types.ObjectId(dishId);
+    await Sales.findOneAndUpdate(
+      { Dish_ID: dishObjId, Sale_Date: start },
+      { $setOnInsert: { Dish_ID: dishObjId, Sale_Date: start }, $inc: { Quantity_Sold: qty } },
+      { upsert: true, new: true }
+    );
+  }
+  return { ok: true };
 }
 
 async function fetchLoginHistory() {
@@ -537,6 +628,10 @@ module.exports = {
   fetchCustomers,
   fetchOrders,
   fetchSales,
+  fetchTodaysOrdersForConclusion,
+  fetchConcludedSales,
+  isTodayAlreadyConcluded,
+  concludeTodaysSales,
   fetchLoginHistory,
   fetchInventoryWithUsage,
   fetchRecentOrders,

@@ -455,12 +455,50 @@
             </table>
         </div>
 
-        <!-- Sales -->
+        <!-- Concluded daily sales + Conclude today -->
+        <div class="table-container">
+            <div class="table-actions">
+                <h2 class="section-title">
+                    <i class="fas fa-cash-register"></i>
+                    Concluded daily sales
+                </h2>
+                <button type="button" class="add-button" id="btnConcludeSales" onclick="openConcludeModal()">
+                    <i class="fas fa-check-circle"></i>
+                    Conclude today's sales
+                </button>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Number of orders</th>
+                        <th>Total amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (concluded_sales && concluded_sales.length) { %>
+                        <% (concluded_sales || []).forEach(function(cs) { %>
+                        <tr>
+                            <td><%= cs.Sale_Date && (typeof cs.Sale_Date === 'string' ? cs.Sale_Date.slice(0,10) : (cs.Sale_Date.toISOString ? cs.Sale_Date.toISOString().slice(0,10) : cs.Sale_Date)) %></td>
+                            <td><%= cs.Order_Count %></td>
+                            <td>₹<%= Number(cs.Total_Amount).toFixed(2) %></td>
+                        </tr>
+                        <% }); %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="3" class="no-data">No concluded sales yet</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Sales (per-dish) -->
         <div class="table-container">
             <div class="table-actions">
                 <h2 class="section-title">
                     <i class="fas fa-chart-line"></i>
-                    Sales
+                    Sales (by item)
                 </h2>
                 <div>
                     <input type="text" class="search-box" placeholder="Search sales...">
@@ -824,6 +862,71 @@
     };
     </script>
     <!-- End New Supplier Modal -->
+
+    <!-- Conclude today's sales Modal -->
+    <div id="concludeModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:2000; align-items:center; justify-content:center;">
+      <div style="background:#222; color:#fff; padding:2rem; border-radius:10px; min-width:400px; max-width:95vw; max-height:90vh; overflow:auto; position:relative;">
+        <h2 style="margin-bottom:1rem;"><i class="fas fa-cash-register"></i> Conclude today's sales</h2>
+        <% if (is_today_concluded) { %>
+          <p style="color: var(--warning-color);">Today's sales have already been concluded.</p>
+          <button type="button" onclick="closeConcludeModal()" style="margin-top:1rem; background:var(--accent-color); color:#fff; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Close</button>
+        <% } else { %>
+          <% if (!today_orders || today_orders.length === 0) { %>
+            <p style="color: var(--text-secondary);">No orders for today yet.</p>
+            <button type="button" onclick="closeConcludeModal()" style="margin-top:1rem; background:var(--accent-color); color:#fff; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Close</button>
+          <% } else { %>
+            <p style="color: var(--text-secondary); margin-bottom:1rem;">Confirm to record today's sales in MongoDB. Summary below:</p>
+            <table class="data-table" style="margin-bottom:1rem;">
+              <thead>
+                <tr><th>#</th><th>Order ID</th><th>Amount</th></tr>
+              </thead>
+              <tbody>
+                <% var totalDay = 0; (today_orders || []).forEach(function(ord, idx) { totalDay += Number(ord.Total_Amount) || 0; %>
+                <tr>
+                  <td><%= idx + 1 %></td>
+                  <td>#<%= ord.Order_ID %></td>
+                  <td>₹<%= (Number(ord.Total_Amount) || 0).toFixed(2) %></td>
+                </tr>
+                <% }); %>
+              </tbody>
+            </table>
+            <p style="font-weight:600; margin-bottom:1rem;">Number of orders: <strong><%= (today_orders || []).length %></strong></p>
+            <p style="font-weight:600; margin-bottom:1rem;">Total: <strong>₹<%= (typeof totalDay !== 'undefined' ? totalDay : 0).toFixed(2) %></strong></p>
+            <div style="display:flex; gap:1rem;">
+              <button type="button" onclick="closeConcludeModal()" style="background:#888; color:#fff; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Cancel</button>
+              <button type="button" id="confirmSalesBtn" style="background:var(--success-color); color:#fff; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Confirm sales</button>
+            </div>
+          <% } %>
+        <% } %>
+        <button type="button" onclick="closeConcludeModal()" style="position:absolute; top:10px; right:10px; background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;">&times;</button>
+      </div>
+    </div>
+    <script>
+    (function() {
+      var concludeModal = document.getElementById('concludeModal');
+      var todayOrders = <%= JSON.stringify((typeof today_orders !== 'undefined' && today_orders) ? today_orders : []) %>;
+      window.openConcludeModal = function() { concludeModal.style.display = 'flex'; };
+      window.closeConcludeModal = function() { concludeModal.style.display = 'none'; };
+      var confirmBtn = document.getElementById('confirmSalesBtn');
+      if (confirmBtn) {
+        confirmBtn.onclick = function() {
+          if (todayOrders.length === 0) return;
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = 'Recording...';
+          fetch('/admin/conclude_sales', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orders: todayOrders.map(function(o) { return { orderId: o.Order_ID, amount: o.Total_Amount }; })
+            })
+          })
+          .then(function() { window.location.href = '/admin_landing'; })
+          .catch(function() { confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm sales'; });
+        };
+      }
+    })();
+    </script>
+    <!-- End Conclude sales Modal -->
 
     <!-- Add staff member Modal -->
     <div id="staffModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:2000; align-items:center; justify-content:center;">
